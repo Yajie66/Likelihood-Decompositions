@@ -1,0 +1,253 @@
+---
+title: "Check identified model"
+author: "Yajie Guo"
+date: "09/09/2024"
+output: html_document
+---
+
+
+```{r}
+
+Species=5
+
+species.state<-c(paste0('x', c(1:Species),sep="")) #Species vectors as characters
+
+
+N=Species
+Possible.reactions<- (N*(N+1)*(N+2)*(N+3))/4
+print(paste(N,"species have", Possible.reactions,"reactions"))
+
+```
+
+
+
+#start from here
+
+```{r}
+
+L.R.matrix<-function(Species){
+  N<-Species
+  Possible.reactions<- (N*(N+1)*(N+2)*(N+3))/4
+  
+species.state<-c(paste0('x', c(1:Species),sep="")) #Species vectors as characters
+
+LHS<-matrix(NA,nrow=Possible.reactions,ncol = Species)
+
+colnames(LHS)<-c(paste0("R",species.state))
+
+RHS<-LHS
+colnames(RHS)<-c(paste0("P",species.state))
+
+return(list(LHS=LHS,RHS=RHS))
+}
+
+#L.R.matrix(Species=1)
+
+```
+
+```{r}
+
+Reaction.direction.fn<-function(possible.list,Species,LHS,RHS){
+
+  N=Species
+check.2species<-  which(rowSums(possible.list)>2)
+
+
+if(length(check.2species)!=0){
+possible.only2.list<-possible.list[-check.2species,]
+}else{possible.only2.list<-possible.list}
+
+
+#total.outcome.reactions---Put one in LHS and another one is RHS
+Total.possible.reactions<-nrow(possible.only2.list)*(nrow(possible.only2.list)-1) 
+
+
+possible.only2.list<-as.matrix.data.frame(possible.only2.list)
+
+one.side<-nrow(possible.only2.list)
+
+
+j=1:one.side
+
+for(i in 1:one.side){
+  
+  index<-(1+((i-1)*(one.side-1))):(i*(one.side-1))
+  
+LHS[index,]<-matrix(rep(possible.only2.list[i,],times=length(index)),ncol=N,nrow=length(index),byrow = TRUE)
+
+
+RHS[index,]<-possible.only2.list[which(j !=i),]     
+
+}
+
+
+
+Reaction.direction<-matrix(NA,ncol=N,nrow=Total.possible.reactions,byrow=TRUE)
+colnames(Reaction.direction)<-c(paste0('RD.x', c(1:Species),sep=""))
+
+for(i in 1:Total.possible.reactions){
+  Reaction.direction[i,]<-RHS[i,]-LHS[i,]
+}
+
+
+total.reactions<-cbind(LHS,RHS,Reaction.direction)
+
+Reaction.direction<-as.data.frame(Reaction.direction)
+
+return(list(Reaction.direction=Reaction.direction,Total.possible.reactions=Total.possible.reactions))
+
+}
+```
+
+
+
+```{r}
+
+results.identified.ratio<-function(Reaction.direction,Species,Total.possible.reactions){
+
+row_strings.R.D<-apply(Reaction.direction,1,paste,collapse="-")
+
+# Count frequencies of each row
+row_counts.R.D<- table(row_strings.R.D)
+
+# Convert the table to a data frame
+row_counts_R.D <- as.data.frame(row_counts.R.D)
+
+colnames(row_counts_R.D) <- c("Reaction.directions", "Frequency")
+
+
+no.R.D<-length(row_counts_R.D$Freq) #the number of unique stoichimetric reaction direction of species
+
+
+max.repeated<-row_counts_R.D$Freq[which.max(row_counts_R.D$Freq)] #max
+
+
+identified<-length(which(row_counts_R.D$Frequency==1)) #number of identifiable parameters.
+
+Iden.ratio<-length(which(row_counts_R.D$Frequency==1))/Total.possible.reactions   
+
+identified.table<-c("species"=Species,"total.possible"=Total.possible.reactions,
+                    
+"Identified"=identified,"Max.reaction"=max.repeated,"Identified.ratio"=Iden.ratio,"Number.stoichimetric.direction"=no.R.D)
+
+
+return(identified.table)
+}
+
+```
+
+
+
+
+
+
+```{r}
+total.out<-rep(NA,l=6)
+
+
+s<-c(1:15) #species
+
+for(i in 1:length(s)){
+  
+ num_vars<- s[i]
+ 
+ args_list <- lapply(replicate(num_vars, list(c(0:2)), simplify = FALSE), unlist)
+ 
+possible.list<-  do.call(expand.grid, args_list)
+
+
+LHS<-L.R.matrix(Species = num_vars)$LHS
+RHS<-L.R.matrix(Species = num_vars)$RHS
+
+Reaction.direction<-Reaction.direction.fn(possible.list = possible.list,Species = num_vars,LHS=LHS,RHS=RHS)$Reaction.direction
+
+Total.possible.reactions<-Reaction.direction.fn(possible.list = possible.list,Species = num_vars,LHS=LHS,RHS=RHS)$Total.possible.reactions
+
+table<-results.identified.ratio(Reaction.direction=Reaction.direction,Species = num_vars,Total.possible.reactions=Total.possible.reactions)
+
+
+
+total.out<-rbind(total.out,table)
+
+}
+total.out<-as.data.frame(total.out[-1,])
+rownames(total.out)<-NULL
+total.out
+```
+
+```{r}
+write.csv(total.out, file = "table.identified.pdf", row.names = FALSE)
+```
+
+```{r}
+total.out$Identified
+
+s.n<-total.out$species 
+
+total.out$total.possible-s.n*(s.n+1)*(s.n+2)*(s.n+3)/4 #total.reactions
+
+
+total.out$Identified- (s.n*(s.n+1)*(s.n+2)*(s.n+3)/4 -( (2*s.n+s.n*(s.n-1))*(s.n+1) ))#identified
+
+
+
+(total.out$total.possible-total.out$Identified)/((s.n+1)*s.n)
+
+
+(2*s.n+s.n*(s.n-1))*(s.n+1) 
+
+s.n*((s.n+1)^2)
+
+(s.n*(20*s.n-4)+s.n*(s.n-1)*(s.n-2)*(s.n+5))/4
+
+total.out$Number.stoichimetric.direction- (4*s.n+5*s.n*(s.n-1)+2*s.n*(s.n-1)*(s.n-2)+s.n*(s.n-1)*(s.n-2)*(s.n-3)/4)
+
+
+(s.n*(20*s.n-4)+s.n*(s.n-1)*(s.n-2)*(s.n+5))/4- (4*s.n+5*s.n*(s.n-1)+2*s.n*(s.n-1)*(s.n-2)+s.n*(s.n-1)*(s.n-2)*(s.n-3)/4)
+```
+
+
+
+
+```{r}
+plot(x=total.out$species,y=total.out$Identified.ratio,type="l")
+```
+
+
+```{r}
+Out<-ggplot(total.out, aes(x = species)) +
+  geom_line(aes(y = total.possible, color = "Total Possible"), size = 1.2) +
+  geom_line(aes(y = Identified, color = "Identified"), linetype = "dashed", size = 1.2) +
+  scale_color_manual(values = c("Total Possible" = "blue", "Identified" = "red")) +
+  labs(x = "Species", y = "Count", color = "Legend",title="The total possible reactions and identified reactions of species") +
+  theme_minimal()
+Out
+
+
+```
+
+
+```{r}
+ggsave("Total.reactions and identified.pdf", Out, width = 8, height = 6, units = "in")
+```
+
+
+```{r}
+
+library(tidyr)
+
+# Reshape data from wide to long format
+df_long <- gather(total.out, key = "Type", value = "Value", -species)
+
+
+library(ggplot2)
+
+# Plot using ggplot2
+ggplot(df_long, aes(x = species, y = Value, color = Type)) +
+  geom_point() +
+  labs(title = "Measurement Types by Sample",
+       x = "Sample", y = "Value", color = "Measurement Type")
+
+```
+
+

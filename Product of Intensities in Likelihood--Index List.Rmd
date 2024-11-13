@@ -1,0 +1,90 @@
+---
+title: "Product of Intensities in Likelihood Function--Index List"
+author: "Yajie Guo"
+date: "12/11/2024"
+output: html_document
+
+---
+
+Method1: For loop to list all possible results 
+
+```{r}
+
+rm(list=ls())
+
+# Define the target sum
+target_sum <- 100
+
+# Initialize an empty list to store the results
+results <- NULL 
+
+# Use nested loops to pick each element from 0 to target_sum
+counter <- 1
+
+for (x1 in 0:target_sum) {
+  
+  target_sum1 <-  target_sum- x1 
+  
+  for (x2 in 0:target_sum1) {
+    
+    target_sum2 <- target_sum1 - x2
+    
+    
+    for (x3 in 0:target_sum2) {
+      
+      target_sum3 <- target_sum2 - x3
+      
+      x4 <-  target_sum3
+        
+        # Check if the sum equals target_sum
+       
+          # Store the combination
+          results <- rbind(results, c(x1, x2, x3, x4) )
+          
+      
+    }
+  }
+}
+
+results
+dim(results)
+
+```
+Method2: Much more memory needed, list all possible results and pick the required target sum= jump numbers
+
+```{r}
+target_sum <- 100
+
+# Generate all combinations of four integers from 0 to target_sum
+# Adjust the range if you want negative numbers as well
+combinations <- expand.grid(x1 = 0:target_sum, x2 = 0:target_sum, x3 = 0:target_sum, x4 = 0:target_sum)
+
+# Filter combinations where the sum of x1, x2, x3, x4 equals the target_sum
+result <- combinations[rowSums(combinations) == target_sum, ]
+
+# Print the results
+#print(result)
+
+dim(result)
+ # 176851      4
+
+head(result)
+    
+```
+
+```{r}
+
+# Define the element you're looking for
+element <- 10
+
+# Find rows that contain the element
+rows_with_element <- apply(result, 1, function(row) element %in% row)
+
+# Get row indices where the element exists
+row_indices <- which(rows_with_element)
+
+print(row_indices)
+result[row_indices,]
+
+```
+
